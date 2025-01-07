@@ -1,0 +1,14 @@
+{
+  "name": "music-player",
+  "version": "1.0.0",
+  "description": "HTML5 Audio Player Project",
+  "main": "src/player.js",
+  "scripts": {
+    "test": "jest",
+    "start": "open index.html"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "jest": "^29.0.0"
+  }
+}

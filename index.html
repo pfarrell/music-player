@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sample HTML5 Audio Player</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f0f0f5;
+      padding: 20px;
+    }
+
+    .player-container {
+      max-width: 600px;
+      margin: 0 auto;
+      text-align: center;
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .track-item {
+      cursor: pointer;
+      padding: 8px;
+      border-bottom: 1px solid #ddd;
+    }
+
+    .track-item.active {
+      font-weight: bold;
+      background-color: #007acc;
+      color: white;
+    }
+
+    .track-item:hover {
+      background-color: #f4f4f4;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>HTML5 Audio Player Example</h1>
+  <div class="player-container" id="player-container">
+  </div>
+
+  <!-- Include player.js -->
+  <script src="player.js"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const playlist = [
+        { title: "Good Times Bad Times", url: "https://patf.com/bemused/stream/143465", artist: "Led Zeppelin", summaryUrl: "https://patf.com/bemused/track/143465/summary" },
+        { title: "Black Mountain Side", url: "https://patf.com/bemused/stream/143418", artist: "Led Zeppelin", summaryUrl: "https://patf.com/bemused/track/143418/summary" },
+        { title: "Big Railroad Blues", url: "https://patf.com/bemused/stream/148700", artist: "Gus Cannon's Jug Stompers", summaryUrl: "https://patf.com/bemused/track/148700/summary" },
+        { title: "Rain and Snow", url: "https://patf.com/bemused/stream/15296", artist: "Cannon's Jug Stompers", summaryUrl: "https://patf.com/bemused/track/15296/summary" },
+
+      ];
+
+      new AudioPlayer(playlist, 'player-container', {
+        onTrackStart: (track) => console.log('Now playing:', track.title),
+        onFiveSecondMark: (track) => console.log('5 seconds into track:', track.title)
+      });
+
+    });
+  </script>
+</body>
+
+</html>
+
