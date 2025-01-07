@@ -8,7 +8,29 @@ const dom = new JSDOM(`<!DOCTYPE html><body><div id="player-container"></div></b
   runScripts: "dangerously",
   resources: "usable"
 });
+
 dom.window.eval(playerScript);
+
+// Mock HTMLMediaElement methods to prevent unimplemented errors
+Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'play', {
+  writable: true,
+  value: jest.fn(() => Promise.resolve()) // Return a resolved promise to simulate `play`
+});
+
+Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'pause', {
+  writable: true,
+  value: jest.fn()
+});
+
+Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'currentTime', {
+  writable: true,
+  value: 0
+});
+
+Object.defineProperty(dom.window.HTMLMediaElement.prototype, 'duration', {
+  writable: true,
+  value: 60 // Simulated track duration
+});
 
 describe('AudioPlayer', () => {
   let player;
@@ -32,10 +54,12 @@ describe('AudioPlayer', () => {
 
   test('should call onTrackStart when a track starts playing', () => {
     player.loadTrack(0);
+    player.audioPlayer.dispatchEvent(new dom.window.Event('play'));
     expect(onTrackStartMock).toHaveBeenCalledWith({ title: 'Track 1', artist: 'Artist 1', url: 'track1.mp3' });
   });
 
   test('should trigger onFiveSecondMark callback after 5 seconds of playback', () => {
+    player.loadTrack(0);
     player.audioPlayer.currentTime = 5;
     player.audioPlayer.dispatchEvent(new dom.window.Event('timeupdate'));
     expect(onFiveSecondMarkMock).toHaveBeenCalledWith({ title: 'Track 1', artist: 'Artist 1', url: 'track1.mp3' });
@@ -51,6 +75,27 @@ describe('AudioPlayer', () => {
     player.loadTrack(1);
     player.prevTrack();
     expect(player.currentTrackIndex).toBe(0);
+  });
+
+  test('should not throw errors when play and pause are called', () => {
+    expect(() => {
+      player.audioPlayer.play();
+      player.audioPlayer.pause();
+    }).not.toThrow();
+  });
+
+  test('should reset fiveSecondCallbackTriggered after loading a new track', () => {
+    player.loadTrack(0);
+    player.audioPlayer.currentTime = 5;
+    player.audioPlayer.dispatchEvent(new dom.window.Event('timeupdate'));
+    expect(onFiveSecondMarkMock).toHaveBeenCalledTimes(1);
+
+    player.loadTrack(1); // Load a new track and reset callbacks
+    expect(player.fiveSecondCallbackTriggered).toBe(false);
+  });
+
+  afterEach(() => {
+    player.fiveSecondCallbackTriggered = false; // Ensure it's reset for subsequent tests
   });
 });
 
