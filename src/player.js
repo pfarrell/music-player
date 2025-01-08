@@ -50,6 +50,11 @@
 
     this.audioPlayer.addEventListener('play', () => {
       this.fiveSecondCallbackTriggered = false;
+      this.updatePlayButton();
+    });
+
+    this.audioPlayer.addEventListener('pause', () => {
+      this.updatePlayButton();
     });
   };
 
@@ -71,10 +76,8 @@
     playButton.addEventListener('click', () => {
       if (this.audioPlayer.paused) {
         this.audioPlayer.play();
-        playButton.innerHTML = '&#10074;&#10074;'; // Unicode for pause symbol
       } else {
         this.audioPlayer.pause();
-        playButton.innerHTML = '&#9658;';
       }
     });
 
@@ -144,6 +147,10 @@
     return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
+  AudioPlayer.prototype.updatePlayButton = function() {
+    this.playButton.innerHTML = this.audioPlayer.paused ? '&#9658;' : '&#10074;&#10074;';
+  };
+
   AudioPlayer.prototype.loadPlaylistUI = function() {
     this.trackListElement.innerHTML = '';
 
@@ -156,9 +163,21 @@
       listItem.style.cursor = 'pointer';
       listItem.style.borderBottom = '1px solid #ccc';
       listItem.style.textAlign = 'left'; // Ensure left alignment for each track
+
       listItem.addEventListener('click', () => {
-        this.loadTrack(index);
+        if (this.currentTrackIndex === index) {
+          // Toggle play/pause if clicking the current track
+          if (this.audioPlayer.paused) {
+            this.audioPlayer.play();
+          } else {
+            this.audioPlayer.pause();
+          }
+        } else {
+          // Load and play the new track
+          this.loadTrack(index);
+        }
       });
+
       this.trackListElement.appendChild(listItem);
     });
   };
@@ -177,6 +196,8 @@
         item.style.backgroundColor = idx === index ? '#007acc' : '';
         item.style.color = idx === index ? 'white' : 'black';
       });
+
+      this.updatePlayButton();
     }
   };
 
