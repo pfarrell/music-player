@@ -14,6 +14,7 @@ function AudioPlayer(playlist, audioElement, containerElement, config = {}) {
   this.container = containerElement;
   this.onTrackStart = config.onTrackStart || function() {};
   this.onFiveSecondMark = config.onFiveSecondMark || function() {};
+  this.getTrackPrefix = config.getTrackPrefix || (() => '');
 
   if (!this.container) {
     throw new Error('Container element not found');
@@ -203,13 +204,26 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
 
   this.playlist.forEach((track, index) => {
     const listItem = document.createElement('li');
-    listItem.textContent = `${index + 1}. ${track.title} - ${track.artist}`;
+    const prefix = this.getTrackPrefix(track, index);
+    const trackText = document.createElement('span');
+    trackText.textContent = `${index + 1}. ${track.title} - ${track.artist}`;
+
     listItem.className = 'track-item';
     listItem.style.listStyle = 'none';
     listItem.style.padding = '10px';
+    listItem.style.display = 'flex';
+    listItem.style.alignItems = 'center';
     listItem.style.cursor = 'pointer';
     listItem.style.borderBottom = '1px solid #ccc';
     listItem.style.textAlign = 'left';
+    
+    if (prefix) {
+      const prefixElement = document.createElement('span');
+      prefixElement.style.marginRight = '8px';
+      prefixElement.innerHTML = prefix;
+      listItem.appendChild(prefixElement);
+    }
+    listItem.appendChild(trackText);
 
     listItem.addEventListener('click', () => {
       if (this.currentTrackIndex === index && !this.audioPlayer.paused) {

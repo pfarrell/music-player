@@ -70,7 +70,8 @@
 
       new AudioPlayer(playlist, audioElement, containerElement, {
         onTrackStart: (track) => console.log('Now playing:', track.title),
-        onFiveSecondMark: (track) => console.log('5 seconds into track:', track.title)
+        onFiveSecondMark: (track) => console.log('5 seconds into track:', track.title),
+        getTrackPrefix: (track, index) => `<i>${index}</i>`
       });
 
     });
