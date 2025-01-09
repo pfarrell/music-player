@@ -49,6 +49,8 @@
   <script src="src/player.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', () => {
+      const audioElement = document.createElement('audio');
+      const containerElement = document.getElementById('player-container');
       const playlist = [
         { title: "Good Times Bad Times", url: "https://patf.com/bemused/stream/143465", artist: "Led Zeppelin", summaryUrl: "https://patf.com/bemused/track/143465/summary" },
         { title: "Black Mountain Side", url: "https://patf.com/bemused/stream/143418", artist: "Led Zeppelin", summaryUrl: "https://patf.com/bemused/track/143418/summary" },
@@ -57,7 +59,7 @@
 
       ];
 
-      new AudioPlayer(playlist, 'player-container', {
+      new AudioPlayer(playlist, audioElement, containerElement, {
         onTrackStart: (track) => console.log('Now playing:', track.title),
         onFiveSecondMark: (track) => console.log('5 seconds into track:', track.title)
       });

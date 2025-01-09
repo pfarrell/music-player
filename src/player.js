@@ -1,261 +1,300 @@
 // player.js
-// HTML5 Audio Player JavaScript Module (Standalone Version)
+const PLAY_SYMBOL = '&#9205;';
+const PAUSE_SYMBOL = '&#10074;&#10074;';
+const PREV_SYMBOL = '&#9194;';
+const NEXT_SYMBOL = '&#9193;';
+const SHUFFLE_SYMBOL = '&#128256;';
 
-(function() {
-  function AudioPlayer(playlist, containerId, callbacks = {}) {
-    this.playlist = playlist || [];
-    this.currentTrackIndex = 0;
-    this.shuffle = false;
-    this.shuffleHistory = [];
-    this.container = document.getElementById(containerId);
-    this.onTrackStart = callbacks.onTrackStart || function() {};
-    this.onFiveSecondMark = callbacks.onFiveSecondMark || function() {};
+function AudioPlayer(playlist, audioElement, containerElement, config = {}) {
+  this.playlist = playlist || [];
+  this.currentTrackIndex = 0;
+  this.shuffle = config.shuffle || false;
+  this.shuffleHistory = [];
+  this.audioPlayer = audioElement;
+  this.container = containerElement;
+  this.onTrackStart = config.onTrackStart || function() {};
+  this.onFiveSecondMark = config.onFiveSecondMark || function() {};
 
-    if (!this.container) {
-      throw new Error('Container element not found');
-    }
-
-    this.init();
+  if (!this.container) {
+    throw new Error('Container element not found');
   }
 
-  AudioPlayer.prototype.init = function() {
-    this.audioPlayer = document.createElement('audio');
-    this.audioPlayer.controls = false; // Disable default controls for custom styling
-    this.container.appendChild(this.audioPlayer);
+  this.init();
+}
 
-    this.controlsContainer = document.createElement('div');
-    this.controlsContainer.className = 'controls';
-    this.container.appendChild(this.controlsContainer);
+AudioPlayer.prototype.init = function() {
+  this.audioPlayer.controls = false;
+  this.container.appendChild(this.audioPlayer);
 
-    this.createControls();
+  this.controlsContainer = document.createElement('div');
+  this.controlsContainer.className = 'controls';
+  this.container.appendChild(this.controlsContainer);
 
-    this.trackListElement = document.createElement('ul');
-    this.trackListElement.className = 'playlist';
-    this.trackListElement.style.textAlign = 'left'; // Left-align the playlist
-    this.container.appendChild(this.trackListElement);
+  this.createControls();
 
-    this.loadPlaylistUI();
-    this.loadTrack(this.currentTrackIndex);
+  this.trackListElement = document.createElement('ul');
+  this.trackListElement.className = 'playlist';
+  this.trackListElement.style.textAlign = 'left';
+  this.container.appendChild(this.trackListElement);
 
-    this.audioPlayer.addEventListener('ended', () => {
-      this.nextTrack();
-    });
+  this.loadPlaylistUI();
+  this.loadAndPlayTrack(this.currentTrackIndex);
 
-    this.audioPlayer.addEventListener('timeupdate', () => {
-      if (this.audioPlayer.currentTime >= 5 && !this.fiveSecondCallbackTriggered) {
-        this.onFiveSecondMark(this.playlist[this.currentTrackIndex]);
-        this.fiveSecondCallbackTriggered = true;
-      }
-    });
+  this.attachAudioPlayerListeners();
+};
 
-    this.audioPlayer.addEventListener('play', () => {
-      this.fiveSecondCallbackTriggered = false;
-      this.updatePlayButton();
-    });
+AudioPlayer.prototype.createControls = function() {
+  const controlsWrapper = document.createElement('div');
+  controlsWrapper.style.display = 'flex';
+  controlsWrapper.style.justifyContent = 'center';
+  controlsWrapper.style.gap = '10px';
+  controlsWrapper.style.alignItems = 'center';
 
-    this.audioPlayer.addEventListener('pause', () => {
-      this.updatePlayButton();
-    });
-  };
+  this.prevButtonElement = this.createPrevButton();
+  this.playButtonElement = this.createPlayButton();
 
-  AudioPlayer.prototype.createControls = function() {
-    const controlsWrapper = document.createElement('div');
-    controlsWrapper.style.display = 'flex';
-    controlsWrapper.style.justifyContent = 'center';
-    controlsWrapper.style.gap = '10px';
-    controlsWrapper.style.alignItems = 'center';
+  this.timeElapsedDisplay = document.createElement('span');
+  this.timeElapsedDisplay.className = 'time-display';
+  this.timeElapsedDisplay.style.marginLeft = '10px';
+  this.timeElapsedDisplay.textContent = '0:00';
 
-    const prevButton = document.createElement('button');
-    prevButton.innerHTML = '&#9664;'; // Unicode for left arrow
-    prevButton.className = 'player-btn';
-    prevButton.addEventListener('click', () => this.prevTrack());
+  const progressBarWrapper = this.createProgressBar();
 
-    const playButton = document.createElement('button');
-    playButton.innerHTML = '&#9658;'; // Unicode for play symbol
-    playButton.className = 'player-btn';
-    playButton.addEventListener('click', () => {
-      if (this.audioPlayer.paused) {
-        this.audioPlayer.play();
-      } else {
-        this.audioPlayer.pause();
-      }
-    });
+  this.trackLengthDisplay = document.createElement('span');
+  this.trackLengthDisplay.className = 'time-display';
+  this.trackLengthDisplay.style.marginRight = '10px';
+  this.trackLengthDisplay.textContent = '0:00';
 
-    const nextButton = document.createElement('button');
-    nextButton.innerHTML = '&#9654;'; // Unicode for right arrow
-    nextButton.className = 'player-btn';
-    nextButton.addEventListener('click', () => this.nextTrack());
+  this.nextButtonElement = this.createNextButton();
+  this.shuffleToggleElement = this.createShuffleToggle();
 
-    const shuffleToggle = document.createElement('button');
-    shuffleToggle.innerHTML = '&#128256;'; // Unicode for shuffle symbol
-    shuffleToggle.className = 'player-btn';
-    shuffleToggle.style.opacity = '0.5';
-    shuffleToggle.style.transition = 'all 0.2s ease';
+  controlsWrapper.appendChild(this.prevButtonElement);
+  controlsWrapper.appendChild(this.playButtonElement);
+  controlsWrapper.appendChild(this.nextButtonElement);
+  controlsWrapper.appendChild(this.timeElapsedDisplay);
+  controlsWrapper.appendChild(progressBarWrapper);
+  controlsWrapper.appendChild(this.trackLengthDisplay);
+  controlsWrapper.appendChild(this.shuffleToggleElement);
 
-    shuffleToggle.addEventListener('click', () => {
-      this.shuffle = !this.shuffle;
-      shuffleToggle.style.opacity = this.shuffle ? '1' : '0.5';
-      shuffleToggle.style.backgroundColor = this.shuffle ? '#007acc' : '';
-      shuffleToggle.style.color = this.shuffle ? 'white' : '';
-      if (this.shuffle) {
-        this.shuffleHistory = [];
-        let nextIndex;
-        nextIndex = Math.floor(Math.random() * this.playlist.length);
-        this.shuffleHistory.push(nextIndex);
-        this.loadTrack(nextIndex);
-      }
-    });
+  this.controlsContainer.appendChild(controlsWrapper);
+};
 
-    const progressBarWrapper = document.createElement('div');
-    progressBarWrapper.style.flexGrow = '1';
-    progressBarWrapper.style.position = 'relative';
+AudioPlayer.prototype.createPrevButton = function() {
+  const prevButton = document.createElement('button');
+  prevButton.innerHTML = PREV_SYMBOL;
+  prevButton.className = 'player-btn';
+  prevButton.addEventListener('click', () => this.playPrevTrack());
+  return prevButton;
+};
 
-    const progressBar = document.createElement('input');
-    progressBar.type = 'range';
-    progressBar.min = '0';
-    progressBar.max = '100';
-    progressBar.value = '0';
-    progressBar.style.width = '100%';
-    progressBar.addEventListener('input', (e) => {
-      const percent = e.target.value / 100;
-      this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
-    });
-
-    this.audioPlayer.addEventListener('timeupdate', () => {
-      if (this.audioPlayer.duration) {
-        progressBar.value = (this.audioPlayer.currentTime / this.audioPlayer.duration) * 100;
-        timeElapsedDisplay.textContent = this.formatTime(this.audioPlayer.currentTime);
-        trackLengthDisplay.textContent = this.formatTime(this.audioPlayer.duration);
-      }
-    });
-
-    progressBarWrapper.appendChild(progressBar);
-
-    const timeElapsedDisplay = document.createElement('span');
-    timeElapsedDisplay.className = 'time-display';
-    timeElapsedDisplay.style.marginLeft = '10px';
-    timeElapsedDisplay.textContent = '0:00';
-
-    const trackLengthDisplay = document.createElement('span');
-    trackLengthDisplay.className = 'time-display';
-    trackLengthDisplay.style.marginRight = '10px';
-    trackLengthDisplay.textContent = '0:00';
-
-    controlsWrapper.appendChild(prevButton);
-    controlsWrapper.appendChild(playButton);
-    controlsWrapper.appendChild(timeElapsedDisplay);
-    controlsWrapper.appendChild(progressBarWrapper);
-    controlsWrapper.appendChild(trackLengthDisplay);
-    controlsWrapper.appendChild(nextButton);
-    controlsWrapper.appendChild(shuffleToggle);
-
-    this.controlsContainer.appendChild(controlsWrapper);
-    this.playButton = playButton;
-  };
-
-  AudioPlayer.prototype.formatTime = function(seconds) {
-    const minutes = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
-  };
-
-  AudioPlayer.prototype.updatePlayButton = function() {
-    this.playButton.innerHTML = this.audioPlayer.paused ? '&#9658;' : '&#10074;&#10074;';
-  };
-
-  AudioPlayer.prototype.loadPlaylistUI = function() {
-    this.trackListElement.innerHTML = '';
-
-    this.playlist.forEach((track, index) => {
-      const listItem = document.createElement('li');
-      listItem.textContent = `${index + 1}. ${track.title} - ${track.artist}`; // Add numbering to tracks
-      listItem.className = 'track-item';
-      listItem.style.listStyle = 'none';
-      listItem.style.padding = '10px';
-      listItem.style.cursor = 'pointer';
-      listItem.style.borderBottom = '1px solid #ccc';
-      listItem.style.textAlign = 'left'; // Ensure left alignment for each track
-
-      listItem.addEventListener('click', () => {
-        if (this.currentTrackIndex === index) {
-          // Toggle play/pause if clicking the current track
-          if (this.audioPlayer.paused) {
-            this.audioPlayer.play();
-          } else {
-            this.audioPlayer.pause();
-          }
-        } else {
-          // Load and play the new track
-          this.loadTrack(index);
-        }
-      });
-
-      this.trackListElement.appendChild(listItem);
-    });
-  };
-
-  AudioPlayer.prototype.loadTrack = function(index) {
-    this.currentTrackIndex = index;
-    const track = this.playlist[index];
-
-    if (track) {
-      this.audioPlayer.src = track.url;
+AudioPlayer.prototype.createPlayButton = function() {
+  const playButton = document.createElement('button');
+  playButton.innerHTML = PLAY_SYMBOL;
+  playButton.className = 'player-btn';
+  playButton.addEventListener('click', () => {
+    if (this.audioPlayer.paused) {
       this.audioPlayer.play();
-      this.onTrackStart(track);
-
-      Array.from(this.trackListElement.children).forEach((item, idx) => {
-        item.classList.toggle('active', idx === index);
-        item.style.backgroundColor = idx === index ? '#007acc' : '';
-        item.style.color = idx === index ? 'white' : 'black';
-      });
-
-      this.updatePlayButton();
+    } else {
+      this.audioPlayer.pause();
     }
-  };
+  });
+  return playButton;
+};
 
-  AudioPlayer.prototype.nextTrack = function() {
+AudioPlayer.prototype.createNextButton = function() {
+  const nextButton = document.createElement('button');
+  nextButton.innerHTML = NEXT_SYMBOL;
+  nextButton.className = 'player-btn';
+  nextButton.addEventListener('click', () => this.playNextTrack());
+  return nextButton;
+};
+
+AudioPlayer.prototype.createShuffleToggle = function() {
+  const shuffleToggle = document.createElement('button');
+  shuffleToggle.innerHTML = SHUFFLE_SYMBOL;
+  shuffleToggle.className = 'player-btn';
+  shuffleToggle.style.opacity = '0.5';
+  shuffleToggle.style.transition = 'all 0.2s ease';
+
+  shuffleToggle.addEventListener('click', () => {
+    this.shuffle = !this.shuffle;
+    shuffleToggle.style.opacity = this.shuffle ? '1' : '0.5';
+    shuffleToggle.style.backgroundColor = this.shuffle ? '#007acc' : '';
+    shuffleToggle.style.color = this.shuffle ? 'white' : '';
+
     if (this.shuffle) {
-      if (this.shuffleHistory.length === this.playlist.length) {
-        this.shuffleHistory = [];
-      }
+      this.shuffleHistory = [];
+      // Select a random track different from current
       let nextIndex;
       do {
         nextIndex = Math.floor(Math.random() * this.playlist.length);
-      } while (nextIndex === this.currentTrackIndex || this.shuffleHistory.includes(nextIndex));
+      } while (nextIndex === this.currentTrackIndex);
 
       this.shuffleHistory.push(nextIndex);
-      this.currentTrackIndex = nextIndex;
-    } else {
-      this.currentTrackIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+      this.loadAndPlayTrack(nextIndex);
     }
-    this.loadTrack(this.currentTrackIndex);
-  };
 
-  AudioPlayer.prototype.prevTrack = function() {
-    if (this.shuffle && this.shuffleHistory.length > 1) {
-      this.shuffleHistory.pop(); // Remove current track
-      this.currentTrackIndex = this.shuffleHistory[this.shuffleHistory.length - 1];
-    } else {
-      this.currentTrackIndex = (this.currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
+    this.shuffleHistory = [this.currentTrackIndex];
+  });
+  return shuffleToggle;
+};
+
+AudioPlayer.prototype.createProgressBar = function() {
+  const progressBarWrapper = document.createElement('div');
+  progressBarWrapper.style.flexGrow = '1';
+  progressBarWrapper.style.position = 'relative';
+
+  const progressBar = document.createElement('input');
+  progressBar.type = 'range';
+  progressBar.min = '0';
+  progressBar.max = '100';
+  progressBar.value = '0';
+  progressBar.style.width = '100%';
+  progressBar.addEventListener('input', (e) => {
+    const percent = e.target.value / 100;
+    this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
+  });
+
+  progressBarWrapper.appendChild(progressBar);
+  return progressBarWrapper;
+};
+
+AudioPlayer.prototype.attachAudioPlayerListeners = function() {
+  this.audioPlayer.addEventListener('ended', () => {
+    this.playNextTrack();
+  });
+
+  this.audioPlayer.addEventListener('timeupdate', () => {
+    if (this.audioPlayer.currentTime >= 5 && !this.fiveSecondCallbackTriggered) {
+      this.onFiveSecondMark(this.playlist[this.currentTrackIndex]);
+      this.fiveSecondCallbackTriggered = true;
     }
-    this.loadTrack(this.currentTrackIndex);
-  };
 
-  // Expose the AudioPlayer globally
+    if (this.audioPlayer.duration) {
+      const progressBar = this.controlsContainer.querySelector('input[type="range"]');
+      progressBar.value = (this.audioPlayer.currentTime / this.audioPlayer.duration) * 100;
+      this.timeElapsedDisplay.textContent = this.formatTime(this.audioPlayer.currentTime);
+      this.trackLengthDisplay.textContent = this.formatTime(this.audioPlayer.duration);
+    }
+  });
+
+  this.audioPlayer.addEventListener('play', () => {
+    this.fiveSecondCallbackTriggered = false;
+    this.updatePlayButton();
+  });
+
+  this.audioPlayer.addEventListener('pause', () => {
+    this.updatePlayButton();
+  });
+};
+
+AudioPlayer.prototype.formatTime = function(seconds) {
+  const minutes = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+};
+
+AudioPlayer.prototype.updatePlayButton = function() {
+  this.playButtonElement.innerHTML = this.audioPlayer.paused ? PLAY_SYMBOL : PAUSE_SYMBOL;
+};
+
+AudioPlayer.prototype.loadPlaylistUI = function() {
+  this.trackListElement.innerHTML = '';
+
+  this.playlist.forEach((track, index) => {
+    const listItem = document.createElement('li');
+    listItem.textContent = `${index + 1}. ${track.title} - ${track.artist}`;
+    listItem.className = 'track-item';
+    listItem.style.listStyle = 'none';
+    listItem.style.padding = '10px';
+    listItem.style.cursor = 'pointer';
+    listItem.style.borderBottom = '1px solid #ccc';
+    listItem.style.textAlign = 'left';
+
+    listItem.addEventListener('click', () => {
+      if (this.currentTrackIndex === index && !this.audioPlayer.paused) {
+        this.audioPlayer.pause();
+      } else {
+        this.loadAndPlayTrack(index);
+      }
+    });
+
+    this.trackListElement.appendChild(listItem);
+  });
+};
+
+AudioPlayer.prototype.loadAndPlayTrack = function(index) {
+  try {
+    if (index < 0 || index >= this.playlist.length) {
+      throw new Error('Invalid track index');
+    }
+
+    this.currentTrackIndex = index;
+    const track = this.playlist[index];
+
+    this.audioPlayer.src = track.url;
+    this.audioPlayer.play();
+    this.onTrackStart(track);
+
+    Array.from(this.trackListElement.children).forEach((item, idx) => {
+      item.classList.toggle('active', idx === index);
+      item.style.backgroundColor = idx === index ? '#007acc' : '';
+      item.style.color = idx === index ? 'white' : 'black';
+    });
+
+    this.updatePlayButton();
+
+    if (this.shuffle && !this.shuffleHistory.includes(index)) {
+      this.shuffleHistory.push(index);
+    }
+  } catch (error) {
+    console.error('Error loading track:', error);
+  }
+};
+
+AudioPlayer.prototype.playNextTrack = function() {
+  if (this.shuffle) {
+    const remainingTracks = Array.from({ length: this.playlist.length }, (_, i) => i)
+      .filter(i => !this.shuffleHistory.includes(i));
+
+    if (remainingTracks.length === 0) {
+      this.shuffleHistory = [this.currentTrackIndex];
+      remainingTracks.push(...Array.from({ length: this.playlist.length }, (_, i) => i)
+        .filter(i => i !== this.currentTrackIndex));
+    }
+
+    const nextIndex = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
+    this.loadAndPlayTrack(nextIndex);
+  } else {
+    const nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+    this.loadAndPlayTrack(nextIndex);
+  }
+};
+
+AudioPlayer.prototype.playPrevTrack = function() {
+  if (this.shuffle && this.shuffleHistory.length > 1) {
+    this.shuffleHistory.pop();
+    const prevIndex = this.shuffleHistory[this.shuffleHistory.length - 1];
+    this.loadAndPlayTrack(prevIndex);
+  } else {
+    const prevIndex = (this.currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
+    this.loadAndPlayTrack(prevIndex);
+  }
+};
+
+// For browser environments
+if (typeof window !== 'undefined') {
   window.AudioPlayer = AudioPlayer;
-})();
+}
 
-// Usage Example:
-// const playlist = [
-//   { title: 'Relaxing Tune', artist: 'Artist 1', url: 'https://www.example.com/audio/track1.mp3' },
-//   { title: 'Chill Vibes', artist: 'Artist 2', url: 'https://www.example.com/audio/track2.mp3' },
-//   { title: 'Focus Beat', artist: 'Artist 3', url: 'https://www.example.com/audio/track3.mp3' }
-// ];
-//
-// window.addEventListener('DOMContentLoaded', () => {
-//   new AudioPlayer(playlist, 'player-container', {
-//     onTrackStart: (track) => console.log('Now playing:', track.title),
-//     onFiveSecondMark: (track) => console.log('5 seconds into track:', track.title)
-//   });
-// });
-
+// For module environments
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = {
+    AudioPlayer,
+    PLAY_SYMBOL,
+    PAUSE_SYMBOL,
+    PREV_SYMBOL,
+    NEXT_SYMBOL,
+    SHUFFLE_SYMBOL
+  };
+}
