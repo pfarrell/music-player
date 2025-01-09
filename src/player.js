@@ -1,6 +1,6 @@
 // player.js
 const PLAY_SYMBOL = '&#9205;';
-const PAUSE_SYMBOL = '&#10074;&#10074;';
+const PAUSE_SYMBOL = '&#9208;';
 const PREV_SYMBOL = '&#9194;';
 const NEXT_SYMBOL = '&#9193;';
 const SHUFFLE_SYMBOL = '&#128256;';
@@ -90,7 +90,7 @@ AudioPlayer.prototype.createPrevButton = function() {
 AudioPlayer.prototype.createPlayButton = function() {
   const playButton = document.createElement('button');
   playButton.innerHTML = PLAY_SYMBOL;
-  playButton.className = 'player-btn';
+  playButton.className = 'play-btn player-btn';
   playButton.addEventListener('click', () => {
     if (this.audioPlayer.paused) {
       this.audioPlayer.play();
