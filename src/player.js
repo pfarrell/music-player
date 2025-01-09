@@ -87,12 +87,23 @@
     nextButton.addEventListener('click', () => this.nextTrack());
 
     const shuffleToggle = document.createElement('button');
-    shuffleToggle.innerHTML = '&#128257; Shuffle: Off'; // Unicode for shuffle symbol
+    shuffleToggle.innerHTML = '&#128256;'; // Unicode for shuffle symbol
     shuffleToggle.className = 'player-btn';
+    shuffleToggle.style.opacity = '0.5';
+    shuffleToggle.style.transition = 'all 0.2s ease';
+
     shuffleToggle.addEventListener('click', () => {
       this.shuffle = !this.shuffle;
-      shuffleToggle.innerHTML = `&#128257; Shuffle: ${this.shuffle ? 'On' : 'Off'}`;
-      this.shuffleHistory = [];
+      shuffleToggle.style.opacity = this.shuffle ? '1' : '0.5';
+      shuffleToggle.style.backgroundColor = this.shuffle ? '#007acc' : '';
+      shuffleToggle.style.color = this.shuffle ? 'white' : '';
+      if (this.shuffle) {
+        this.shuffleHistory = [];
+        let nextIndex;
+        nextIndex = Math.floor(Math.random() * this.playlist.length);
+        this.shuffleHistory.push(nextIndex);
+        this.loadTrack(nextIndex);
+      }
     });
 
     const progressBarWrapper = document.createElement('div');
@@ -139,6 +150,7 @@
     controlsWrapper.appendChild(shuffleToggle);
 
     this.controlsContainer.appendChild(controlsWrapper);
+    this.playButton = playButton;
   };
 
   AudioPlayer.prototype.formatTime = function(seconds) {
