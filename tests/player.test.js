@@ -1,5 +1,3 @@
-// player.test.js
-
 const { AudioPlayer, PLAY_SYMBOL, PAUSE_SYMBOL, PREV_SYMBOL, NEXT_SYMBOL, SHUFFLE_SYMBOL } = require('../src/player');
 
 function decodeHTMLEntity(entity) {
@@ -181,8 +179,8 @@ describe('AudioPlayer', () => {
   });
 
   describe('Callbacks', () => {
-    test('should handle track prefix callback', () => {
-      const trackPrefix = jest.fn(track => `${track.artist} - ${track.title}`);
+    test('should handle track prefix callback with HTML', () => {
+      const trackPrefix = jest.fn(track => {`<span class="track-title">${track.title}</span> - <span class="artist-name">${track.artist}</span>`});
       audioPlayer = new AudioPlayer(mockPlaylist, audioElement, container, {
         onTrackStart,
         onFiveSecondMark,
@@ -191,7 +189,7 @@ describe('AudioPlayer', () => {
       
       audioPlayer.loadPlaylistUI();
       const playlistItems = container.querySelectorAll('.track-item');
-      expect(playlistItems[0].textContent).toBe('1. Song 1 - Artist 1');
+      expect(playlistItems[0].innerHTML).toBe(`1. <span class="track-title">Song 1</span> - <span class="artist-name">Artist 1</span>`);
       expect(trackPrefix).toHaveBeenCalledWith(mockPlaylist[0]);
     });
     test('should trigger onTrackStart callback', () => {
