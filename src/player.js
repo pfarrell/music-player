@@ -5,13 +5,14 @@ const PREV_SYMBOL = '&#9194;';
 const NEXT_SYMBOL = '&#9193;';
 const SHUFFLE_SYMBOL = '&#128256;';
 
-function AudioPlayer(playlist, audioElement, containerElement, config = {}) {
+function AudioPlayer(playlist, audioElement, containerElement, playlistElement, config = {}) {
   this.playlist = playlist || [];
-  this.currentTrackIndex = 0;
+  this.currentTrackIndex = -1;
   this.shuffle = config.shuffle || false;
   this.shuffleHistory = [];
   this.audioPlayer = audioElement;
   this.container = containerElement;
+  this.playlistElement = playlistElement;
   this.onTrackStart = config.onTrackStart || function() {};
   this.onFiveSecondMark = config.onFiveSecondMark || function() {};
   this.getTrackPrefix = config.getTrackPrefix || (() => '');
@@ -32,16 +33,16 @@ AudioPlayer.prototype.init = function() {
   this.container.appendChild(this.controlsContainer);
 
   this.createControls();
-
+  
   this.trackListElement = document.createElement('ul');
   this.trackListElement.className = 'playlist';
   this.trackListElement.style.textAlign = 'left';
-  this.container.appendChild(this.trackListElement);
+  this.playlistElement.appendChild(this.trackListElement);
 
+  this.attachAudioPlayerListeners();
   this.loadPlaylistUI();
   this.loadAndPlayTrack(this.currentTrackIndex);
 
-  this.attachAudioPlayerListeners();
 };
 
 AudioPlayer.prototype.createControls = function() {
@@ -69,12 +70,12 @@ AudioPlayer.prototype.createControls = function() {
   this.nextButtonElement = this.createNextButton();
   this.shuffleToggleElement = this.createShuffleToggle();
 
+  controlsWrapper.appendChild(progressBarWrapper);
+  controlsWrapper.appendChild(this.timeElapsedDisplay);
+  controlsWrapper.appendChild(this.trackLengthDisplay);
   controlsWrapper.appendChild(this.prevButtonElement);
   controlsWrapper.appendChild(this.playButtonElement);
   controlsWrapper.appendChild(this.nextButtonElement);
-  controlsWrapper.appendChild(this.timeElapsedDisplay);
-  controlsWrapper.appendChild(progressBarWrapper);
-  controlsWrapper.appendChild(this.trackLengthDisplay);
   controlsWrapper.appendChild(this.shuffleToggleElement);
 
   this.controlsContainer.appendChild(controlsWrapper);
@@ -94,7 +95,8 @@ AudioPlayer.prototype.createPlayButton = function() {
   playButton.className = 'play-btn player-btn';
   playButton.addEventListener('click', () => {
     if (this.audioPlayer.paused) {
-      this.audioPlayer.play();
+      //this.audioPlayer.play();
+      this.loadAndPlayTrack(this.currentTrackIndex);
     } else {
       this.audioPlayer.pause();
     }
@@ -225,7 +227,7 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
     }
     listItem.appendChild(trackText);
 
-    listItem.addEventListener('click', () => {
+    trackText.addEventListener('click', () => {
       if (this.currentTrackIndex === index && !this.audioPlayer.paused) {
         this.audioPlayer.pause();
       } else {
@@ -239,6 +241,9 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
 
 AudioPlayer.prototype.loadAndPlayTrack = function(index) {
   try {
+    if (this.playlist.length == 0) {
+      return;
+    }
     if (index < 0 || index >= this.playlist.length) {
       throw new Error('Invalid track index');
     }
@@ -247,13 +252,14 @@ AudioPlayer.prototype.loadAndPlayTrack = function(index) {
     const track = this.playlist[index];
 
     this.audioPlayer.src = track.url;
+    //this.audioPlayer.load();
     this.audioPlayer.play();
     this.onTrackStart(track);
 
     Array.from(this.trackListElement.children).forEach((item, idx) => {
       item.classList.toggle('active', idx === index);
-      item.style.backgroundColor = idx === index ? '#007acc' : '';
-      item.style.color = idx === index ? 'white' : 'black';
+      //item.style.backgroundColor = idx === index ? '#007acc' : '';
+      //item.style.color = idx === index ? 'white' : 'black';
     });
 
     this.updatePlayButton();
@@ -294,6 +300,44 @@ AudioPlayer.prototype.playPrevTrack = function() {
     const prevIndex = (this.currentTrackIndex - 1 + this.playlist.length) % this.playlist.length;
     this.loadAndPlayTrack(prevIndex);
   }
+};
+
+AudioPlayer.prototype.addTrack = function(track) {
+  if (!track || !track.title || !track.url) {
+    throw new Error('Invalid track object. Must contain at least title and url properties');
+  }
+  this.playlist.push(track);
+  this.loadPlaylistUI();
+  if(this.currentTrackIndex == -1) {
+    this.currentTrackIndex = 0;
+    this.loadAndPlayTrack(0);
+  }
+  return this.playlist.length - 1; // Return index of newly added track
+};
+
+AudioPlayer.prototype.addTracks = function(tracks) {
+  if (!Array.isArray(tracks)) {
+    throw new Error('Tracks must be provided as an array');
+  }
+  
+  const invalidTracks = tracks.filter(track => !track || !track.title || !track.url);
+  if (invalidTracks.length > 0) {
+    throw new Error('One or more tracks are invalid. Each track must contain at least title and url properties');
+  }
+  
+  const startIndex = this.playlist.length;
+  this.playlist.push(...tracks);
+  this.loadPlaylistUI();
+  return { startIndex, count: tracks.length };
+};
+
+AudioPlayer.prototype.clearPlaylist = function() {
+  this.playlist = [];
+  this.currentTrackIndex = 0;
+  this.shuffleHistory = [];
+  this.loadPlaylistUI();
+  this.audioPlayer.pause();
+  this.audioPlayer.src = '';
 };
 
 // For browser environments

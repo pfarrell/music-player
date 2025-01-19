@@ -1,0 +1,173 @@
+html {
+  height: 100%;
+  overflow-y: scroll;
+}
+body {
+  color: #110000;
+  font-family: "Lato";
+  height: 100%;
+}
+
+#tracklist {
+ margin-top:46px;
+}
+
+td {
+  font-size: 0.8em;
+}
+
+
+.jp-controls {
+  box-sizing: content-box;
+}
+
+#content {
+  padding-top:0px;
+}
+
+.container {
+  height: 100%;
+}
+
+img {
+  border-radius: 0.8%;
+}
+
+#artist_image{
+  max-height: 400px;
+  width: auto;
+}
+
+.item img{
+}
+
+.item a{
+}
+
+.item-x2 {
+  width: 400px;
+}
+
+/*
+.item-x3 {
+  width: 600px;
+}
+*/
+
+.item img {
+  width:180px;
+}
+
+.top-buffer { margin-top:20px; }
+
+.album-title {
+  font-style:italic;
+}
+
+.track-title {
+  font-weight:bold;
+  color:#CF7C29;
+}
+
+.autocomplete-suggestion {
+  background-color:#f8f8f8;
+  border: 1px solid #e7e7e7;
+}
+
+.autocomplete-selected {
+  background-color:#e7e7e7;
+  border: 1px solid #f8f8f8;
+  font-weight:bold;
+}
+
+.playlist {
+  text-align:center;
+  min-width:150px;
+  min-height:100px;
+  border-radius:5px;
+  padding: 15px;
+}
+
+.sp-top-sm {
+  margin-top: 1em;
+}
+
+.sp-top-xl {
+  margin-top: 6em;
+}
+
+.sp-bottom-sm {
+  margin-bottom: 2em;
+}
+
+.row.no-pad {
+    margin-right:0;
+      margin-left:0;
+}
+.row.no-pad > [class*='col-'] {
+    padding-right:0;
+      padding-left:0;
+}
+
+.summary {
+  -webkit-overflow-scrolling: touch;
+  max-height: 300px;
+  padding: 1em;
+  border-radius: 1em;
+  overflow: scroll;
+}
+
+canvas {
+  width:420px;
+  height: 150px;
+  border-top: 1px solid black;
+  border-bottom: 1px solid black;
+  margin-top:-10px;
+  margin-left: 5px;
+  box-shadow: 0 -2px 4px rgba(0,0,0,0.7),
+              0 3px 4px rgba(0,0,0,0.7);
+}
+
+.vcenter {
+  display: inline-block;
+  vertical-align: middle;
+  float: none;
+}
+
+.player {
+  position: relative;
+  width: calc(100% - 20px);
+  z-index: 2;
+}
+
+.favorites {
+  margin-top: 81px;
+  border-left: 1px solid #009be3;
+  border-top: 1px solid #009be3;
+  border-bottom: 1px solid #009be3;
+  float: left;
+  background-color: white;
+  display: inline-block;
+  width: 20px;
+  height: 100%;
+  background-color: rgb(204, 204, 204);
+}
+
+.track_favorites {
+  padding-left: 2px;
+  padding-top: 3.6px;
+  padding-bottom: 3.6px;
+  cursor: pointer;
+  cursor: hand;
+  border-bottom: 1px solid rgb(238, 238, 238);
+}
+
+.col-centered{
+    float: none;
+    margin: 0 auto;
+}
+
+.fit-image{
+  width: 100%;
+  object-fit: cover;
+}

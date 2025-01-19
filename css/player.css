@@ -1,0 +1,59 @@
+.player {
+  position: relative;
+  width: calc(100% - 20px);
+  z-index: 2;
+}
+
+.player-btn, .track-item {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.player-btn {
+  font-size: 20px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 10px;
+  position: relative;
+  z-index: 4;
+  background: none;
+  border: none;
+}
+
+.play-btn {
+  font-size: 25px;
+  width: 30px;
+}
+
+.player-container {
+  position: relative;
+  z-index: 3;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.player-btn,
+.track-item,
+.controls,
+.playlist {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+.track-item {
+  position: relative;
+  z-index: 3;
+  background: white;
+  cursor: pointer;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+}
+
+.track-item.active {
+  font-weight: bold;
+}
+
+.track-item:hover {
+  background-color: #f4f4f4;
+}
