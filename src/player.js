@@ -4,6 +4,7 @@ const PAUSE_SYMBOL = '&#9208;';
 const PREV_SYMBOL = '&#9194;';
 const NEXT_SYMBOL = '&#9193;';
 const SHUFFLE_SYMBOL = '&#128256;';
+const DRAG_HANDLE = '&#8942;';
 
 function AudioPlayer(playlist, audioElement, containerElement, playlistElement, config = {}) {
   this.playlist = playlist || [];
@@ -16,6 +17,8 @@ function AudioPlayer(playlist, audioElement, containerElement, playlistElement, 
   this.onTrackStart = config.onTrackStart || function() {};
   this.onFiveSecondMark = config.onFiveSecondMark || function() {};
   this.getTrackPrefix = config.getTrackPrefix || (() => '');
+  this.draggedItem = null;
+  this.draggedItemIndex = null;
 
   if (!this.container) {
     throw new Error('Container element not found');
@@ -207,15 +210,14 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
   this.playlist.forEach((track, index) => {
     const listItem = document.createElement('li');
     const prefix = this.getTrackPrefix(track, index);
-    const trackText = document.createElement('span');
-    trackText.textContent = `${index + 1}. ${track.title} - ${track.artist}`;
 
     listItem.className = 'track-item';
+    listItem.draggable = true;
     listItem.style.listStyle = 'none';
     listItem.style.padding = '10px';
+    listItem.style.cursor = 'pointer';
     listItem.style.display = 'flex';
     listItem.style.alignItems = 'center';
-    listItem.style.cursor = 'pointer';
     listItem.style.borderBottom = '1px solid #ccc';
     listItem.style.textAlign = 'left';
     
@@ -225,7 +227,97 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
       prefixElement.innerHTML = prefix;
       listItem.appendChild(prefixElement);
     }
+
+    const dragHandle = document.createElement('span');
+    dragHandle.innerHTML = DRAG_HANDLE;
+    dragHandle.style.cursor = 'grab';
+    dragHandle.style.opacity = '0.7';
+    dragHandle.style.fontSize = '16px';
+
+    const trackText = document.createElement('span');
+    trackText.style.flexGrow = '1';
+    trackText.textContent = `${index + 1}. ${track.title} - ${track.artist}`;
+
     listItem.appendChild(trackText);
+    listItem.appendChild(dragHandle);
+
+    // Drag and drop event listeners
+    listItem.addEventListener('dragstart', (e) => {
+      this.draggedItem = listItem;
+      this.draggedItemIndex = index;
+      this.draggedItemIndex.style.pointer = 'grab';
+      listItem.style.opacity = '0.2';
+      e.dataTransfer.effectAllowed = 'move';
+    });
+
+    listItem.addEventListener('dragend', () => {
+      this.draggedItem.style.opacity = '1';
+      this.draggedItem = null;
+      this.draggedItemIndex = null;
+      this.draggedItemIndex.style.pointer = 'pointer';
+
+      // Remove all drag-over effects
+      const items = this.trackListElement.getElementsByClassName('track-item');
+      Array.from(items).forEach(item => {
+        item.style.borderTop = '';
+        item.style.borderBottom = '1px solid #ccc';
+      });
+    });
+
+    listItem.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+
+      const boundingRect = listItem.getBoundingClientRect();
+      const midpoint = boundingRect.top + boundingRect.height / 2;
+
+      if (e.clientY < midpoint) {
+        listItem.style.borderTop = '2px solid #007acc';
+        listItem.style.borderBottom = '1px solid #ccc';
+      } else {
+        listItem.style.borderTop = '';
+        listItem.style.borderBottom = '2px solid #007acc';
+      }
+    });
+
+    listItem.addEventListener('dragleave', () => {
+      listItem.style.borderTop = '';
+      listItem.style.borderBottom = '1px solid #ccc';
+    });
+
+    listItem.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (this.draggedItem === listItem) return;
+
+      const boundingRect = listItem.getBoundingClientRect();
+      const midpoint = boundingRect.top + boundingRect.height / 2;
+      let newIndex = index;
+
+      if (e.clientY > midpoint) {
+        newIndex++;
+      }
+
+      // Update playlist array
+      const [movedTrack] = this.playlist.splice(this.draggedItemIndex, 1);
+      this.playlist.splice(newIndex, 0, movedTrack);
+
+      // Update currentTrackIndex if needed
+      if (this.currentTrackIndex === this.draggedItemIndex) {
+        this.currentTrackIndex = newIndex;
+      } else if (this.draggedItemIndex < this.currentTrackIndex && newIndex >= this.currentTrackIndex) {
+        this.currentTrackIndex--;
+      } else if (this.draggedItemIndex > this.currentTrackIndex && newIndex <= this.currentTrackIndex) {
+        this.currentTrackIndex++;
+      }
+
+      // Reload playlist UI
+      this.loadPlaylistUI();
+
+      // Update active track styling
+      Array.from(this.trackListElement.children).forEach((item, idx) => {
+        item.classList.toggle('active', idx === this.currentTrackIndex);
+      });
+    });
 
     trackText.addEventListener('click', () => {
       if (this.currentTrackIndex === index && !this.audioPlayer.paused) {
@@ -236,6 +328,9 @@ AudioPlayer.prototype.loadPlaylistUI = function() {
     });
 
     this.trackListElement.appendChild(listItem);
+  });
+  Array.from(this.trackListElement.children).forEach((item, idx) => {
+    item.classList.toggle('active', idx === this.currentTrackIndex);
   });
 };
 
@@ -258,8 +353,6 @@ AudioPlayer.prototype.loadAndPlayTrack = function(index) {
 
     Array.from(this.trackListElement.children).forEach((item, idx) => {
       item.classList.toggle('active', idx === index);
-      //item.style.backgroundColor = idx === index ? '#007acc' : '';
-      //item.style.color = idx === index ? 'white' : 'black';
     });
 
     this.updatePlayButton();
@@ -315,7 +408,7 @@ AudioPlayer.prototype.addTrack = function(track) {
   return this.playlist.length - 1; // Return index of newly added track
 };
 
-AudioPlayer.prototype.addTracks = function(tracks) {
+AudioPlayer.prototype.addTracks = function(tracks, playNext=false) {
   if (!Array.isArray(tracks)) {
     throw new Error('Tracks must be provided as an array');
   }
@@ -326,7 +419,11 @@ AudioPlayer.prototype.addTracks = function(tracks) {
   }
   
   const startIndex = this.playlist.length;
-  this.playlist.push(...tracks);
+  if (playNext) {
+    this.playlist.splice(this.currentTrackIndex+1, 0, ...tracks);
+  } else {
+    this.playlist.push(...tracks);
+  }
   this.loadPlaylistUI();
   return { startIndex, count: tracks.length };
 };
