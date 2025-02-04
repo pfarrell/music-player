@@ -19,6 +19,9 @@ function AudioPlayer(playlist, audioElement, containerElement, playlistElement, 
   this.getTrackPrefix = config.getTrackPrefix || (() => '');
   this.draggedItem = null;
   this.draggedItemIndex = null;
+  this.nextAudio = new Audio();
+  this.nextAudio.preload = 'auto';
+  this.preloadTriggered = false;
 
   if (!this.container) {
     throw new Error('Container element not found');
@@ -158,7 +161,8 @@ AudioPlayer.prototype.createProgressBar = function() {
   progressBar.style.width = '100%';
   progressBar.addEventListener('input', (e) => {
     const percent = e.target.value / 100;
-    this.audioPlayer.currentTime = percent * this.audioPlayer.duration;
+    const activePlayer = this.audioPlayer.src ? this.audioPlayer : this.nextAudio;
+    activePlayer.currentTime = percent * activePlayer.duration;
   });
 
   progressBarWrapper.appendChild(progressBar);
@@ -166,11 +170,8 @@ AudioPlayer.prototype.createProgressBar = function() {
 };
 
 AudioPlayer.prototype.attachAudioPlayerListeners = function() {
-  this.audioPlayer.addEventListener('ended', () => {
-    this.playNextTrack();
-  });
-
-  this.audioPlayer.addEventListener('timeupdate', () => {
+  const handleEnded = () => this.playNextTrack();
+  const handleTimeUpdate = () => {
     if (this.audioPlayer.currentTime >= 5 && !this.fiveSecondCallbackTriggered) {
       this.onFiveSecondMark(this.playlist[this.currentTrackIndex]);
       this.fiveSecondCallbackTriggered = true;
@@ -182,16 +183,55 @@ AudioPlayer.prototype.attachAudioPlayerListeners = function() {
       this.timeElapsedDisplay.textContent = this.formatTime(this.audioPlayer.currentTime);
       this.trackLengthDisplay.textContent = this.formatTime(this.audioPlayer.duration);
     }
-  });
 
-  this.audioPlayer.addEventListener('play', () => {
+    if(!this.preloadTriggered && this.audioPlayer.duration - this.audioPlayer.currentTime < 10) {
+      this.preloadNextTrack();
+      this.preloadTriggered = true;
+    }
+  };
+
+  // Add listeners to both audio elements
+  this.audioPlayer.addEventListener('ended', handleEnded);
+  this.nextAudio.addEventListener('ended', handleEnded);
+
+  this.audioPlayer.addEventListener('timeupdate', handleTimeUpdate);
+  this.nextAudio.addEventListener('timeupdate', handleTimeUpdate);
+
+  const handlePlay = () => {
     this.fiveSecondCallbackTriggered = false;
     this.updatePlayButton();
-  });
+  };
 
-  this.audioPlayer.addEventListener('pause', () => {
-    this.updatePlayButton();
-  });
+  this.audioPlayer.addEventListener('play', handlePlay);
+  this.nextAudio.addEventListener('play', handlePlay);
+
+  const handlePause = () => this.updatePlayButton();
+
+  this.audioPlayer.addEventListener('pause', handlePause);
+  this.nextAudio.addEventListener('pause', handlePause);
+
+};
+
+AudioPlayer.prototype.preloadNextTrack = function() {
+  let nextIndex;
+  if(this.shuffle) {
+    const remainingTracks = Array.from({ length: this.playlist.length }, (_, i) => i)
+      .filter(i => !this.shuffleHistory.includes(i));
+    
+    if (remainingTracks.length === 0) {
+      nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+    } else {
+      nextIndex = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
+    }
+  } else {
+    nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+  }
+
+  const nextTrack = this.playlist[nextIndex];
+  if(nextTrack) {
+    this.nextAudio.src = nextTrack.url;
+    this.nextAudio.load();
+  }
 };
 
 AudioPlayer.prototype.formatTime = function(seconds) {
@@ -343,13 +383,16 @@ AudioPlayer.prototype.loadAndPlayTrack = function(index) {
       throw new Error('Invalid track index');
     }
 
-    this.currentTrackIndex = index;
-    const track = this.playlist[index];
+    if(this.nextAudio.src && this.nextAudio.src.endsWith(this.playlist[index].url)) {
+      [this.audioPlayer, this.nextAudio] = [this.nextAudio, this.audioPlayer];
+    } else {
+      this.audioPlayer.src = this.playlist[index].url;
+    }
 
-    this.audioPlayer.src = track.url;
-    //this.audioPlayer.load();
+
+    this.currentTrackIndex = index;
     this.audioPlayer.play();
-    this.onTrackStart(track);
+    this.onTrackStart(this.playlist[index]);
 
     Array.from(this.trackListElement.children).forEach((item, idx) => {
       item.classList.toggle('active', idx === index);
@@ -360,12 +403,15 @@ AudioPlayer.prototype.loadAndPlayTrack = function(index) {
     if (this.shuffle && !this.shuffleHistory.includes(index)) {
       this.shuffleHistory.push(index);
     }
+    this.preloadTriggered = false;
+    this.preloadNextTrack();
   } catch (error) {
     console.error('Error loading track:', error);
   }
 };
 
 AudioPlayer.prototype.playNextTrack = function() {
+  let nextIndex;
   if (this.shuffle) {
     const remainingTracks = Array.from({ length: this.playlist.length }, (_, i) => i)
       .filter(i => !this.shuffleHistory.includes(i));
@@ -376,12 +422,29 @@ AudioPlayer.prototype.playNextTrack = function() {
         .filter(i => i !== this.currentTrackIndex));
     }
 
-    const nextIndex = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
+    nextIndex = remainingTracks[Math.floor(Math.random() * remainingTracks.length)];
     this.loadAndPlayTrack(nextIndex);
   } else {
-    const nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+    nextIndex = (this.currentTrackIndex + 1) % this.playlist.length;
+  }
+
+  // Use preloaded audio if available
+  if (this.nextAudio.src && this.nextAudio.src.endsWith(this.playlist[nextIndex].url)) {
+    [this.audioPlayer, this.nextAudio] = [this.nextAudio, this.audioPlayer];
+    this.currentTrackIndex = nextIndex;
+    this.audioPlayer.play();
+    this.onTrackStart(this.playlist[nextIndex]);
+
+    Array.from(this.trackListElement.children).forEach((item, idx) => {
+      item.classList.toggle('active', idx === nextIndex);
+    });
+
+    this.preloadTriggered = false;
+    this.preloadNextTrack();
+  } else {
     this.loadAndPlayTrack(nextIndex);
   }
+
 };
 
 AudioPlayer.prototype.playPrevTrack = function() {
