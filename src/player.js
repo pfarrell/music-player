@@ -55,21 +55,20 @@ AudioPlayer.prototype.createControls = function() {
   const controlsWrapper = document.createElement('div');
   controlsWrapper.style.display = 'flex';
   controlsWrapper.style.justifyContent = 'center';
-  controlsWrapper.style.gap = '10px';
   controlsWrapper.style.alignItems = 'center';
 
   this.prevButtonElement = this.createPrevButton();
   this.playButtonElement = this.createPlayButton();
 
   this.timeElapsedDisplay = document.createElement('span');
-  this.timeElapsedDisplay.className = 'time-display';
+  this.timeElapsedDisplay.classList.add('time-display', 'elapsed');
   this.timeElapsedDisplay.style.marginLeft = '10px';
   this.timeElapsedDisplay.textContent = '0:00';
 
   const progressBarWrapper = this.createProgressBar();
 
   this.trackLengthDisplay = document.createElement('span');
-  this.trackLengthDisplay.className = 'time-display';
+  this.trackLengthDisplay.classList.add('time-display', 'total');
   this.trackLengthDisplay.style.marginRight = '10px';
   this.trackLengthDisplay.textContent = '0:00';
 
